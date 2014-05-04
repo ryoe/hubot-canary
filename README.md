@@ -3,7 +3,7 @@
 A **[Hubot][hubot]** script to query the [canary.io API][canary].
 
 [hubot]: https://github.com/github/hubot
-[canary]: https://canary.io
+[canary]: http://canary.io
 
 ## Install
 
