@@ -64,8 +64,7 @@ getChecks = (msg) ->
 displayChecks = (msg) ->
   deets = []
   deets.push checkDetails c for c in checks
-
-  msg.send deets.join '\n\n'
+  msg.send deets.join '\n'
 
 checkDetails = (check) ->
   return 'id: ' + check.id + ' => url: ' + check.url
@@ -105,12 +104,7 @@ displayMeasurements = (msg, measurements, checkId, range) ->
   check = measurements[0].check
 
   deets = []
-  deets.push measurements.length + ' measurements found for ' + checkId + ' in last ' + range + ' seconds.'
-  deets.push ''
-  deets.push 'check:'
-  deets.push checkDetails check
-  deets.push ''
-  deets.push measurements.length + ' measurements:'
+  deets.push measurements.length + ' measurements found for ' + check.url + ' in last ' + range + ' seconds.'
   deets.push '--------------------'
   deets.push measurementDetails m for m in measurements
 
