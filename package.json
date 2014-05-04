@@ -1,0 +1,23 @@
+{
+  "name": "hubot-canary",
+  "version": "0.0.1",
+  "description": "A hubot script to query the canary.io API",
+  "main": "index.coffee",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ryoe/hubot-canary.git"
+  },
+  "keywords": [
+    "hubot",
+    "canary",
+    "canary.io"
+  ],
+  "author": "ryoe",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ryoe/hubot-canary/issues"
+  }
+}
