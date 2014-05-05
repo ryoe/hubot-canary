@@ -5,6 +5,7 @@ A [Hubot][hubot] script to query the [canary.io API][canary].
 [hubot]: https://github.com/github/hubot
 [canary]: http://canary.io
 [canary-gh]: https://github.com/canaryio
+[ember]: http://emberjs.com/
 
 ## Install It
 
@@ -44,5 +45,5 @@ Other than the 79 character line length limit, which I consider to be a suggesti
 
 ## Other Projects Consuming canary.io
 
-- [canary-ember](https://github.com/jagthedrummer/canary-ember) - An Ember front end to data produced by canary.io
+- [canary-ember](https://github.com/jagthedrummer/canary-ember) - An [Ember][ember] front end to data produced by [canary.io][canary]
 
