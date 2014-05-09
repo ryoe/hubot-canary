@@ -21,6 +21,7 @@
 moment = require 'moment'
 
 checks = []
+checksMap = {}
 checksUrl = 'http://checks.canary.io'
 measuresUrl = 'https://api.canary.io/checks/XXX/measurements?range=YYY'
 
@@ -43,7 +44,7 @@ apiCall = (msg, url, cb) ->
       else
         cb res.statusCode, body
 
-getChecks = (msg) ->
+getChecks = (msg, silent, cb) ->
   text = msg.message.text
 
   if text.match(/\breset\b/i)
@@ -51,7 +52,8 @@ getChecks = (msg) ->
 
   if checks.length > 0
     #use cached checks
-    displayChecks msg
+    displayChecks msg if not silent
+    cb null, null if cb
     return
 
   apiCall msg, checksUrl, (err, body) ->
@@ -61,7 +63,9 @@ getChecks = (msg) ->
       return
 
     checks = JSON.parse body
-    displayChecks msg
+    checksMap[c.id] = c for c in checks
+    displayChecks msg if not silent
+    cb null, null if cb
 
 displayChecks = (msg) ->
   deets = []
@@ -237,22 +241,31 @@ getUnknownCommand = (msg) ->
   msg.send list.join '\n'
 
 isValidCheckId = (msg, checkId) ->
-  c = checks[checkId]
+  c = checksMap[checkId]
   return true if c?
   msg.send '"' + checkId + '" is not a current check-id.\nTry "hubot canary check" for the current cached list.\nOr try "hubot canary reset" to clear the cache and retrive new list.'
   return false
+
+processCanaryCmd = (msg, text) ->
+  if text.match(/\bcheck(s)?\b/i)
+    getChecks msg, false, null
+  else if text.match(/\bhelp\b/i)
+    getHelp msg
+  else if text.match(/\bmeasure(ment)?(s)?\b/i)
+    getMeasurements msg
+  else if text.match(/\bsummary?(s)?\b/i)
+    getSummary msg
+  else
+    getUnknownCommand msg
 
 module.exports = (robot) ->
   robot.respond /\bcanary\b/i, (msg) ->
     text = msg.message.text
 
-    if text.match(/\bcheck(s)?\b/i)
-      getChecks msg
-    else if text.match(/\bhelp\b/i)
-      getHelp msg
-    else if text.match(/\bmeasure(ment)?(s)?\b/i)
-      getMeasurements msg
-    else if text.match(/\bsummary?(s)?\b/i)
-      getSummary msg
+    if checks.length == 0 #sanity check
+      getChecks msg, true, (err, data) ->
+        processCanaryCmd msg, text if not err
     else
-      getUnknownCommand msg
+      processCanaryCmd msg, text
+
+
