@@ -6,6 +6,9 @@ A [Hubot][hubot] script to query the [canary.io API][canary].
 [canary]: http://canary.io
 [canary-gh]: https://github.com/canaryio
 
+## Volatility alert
+The commands supported are subject to change with little warning as we figure out what **hubot-canary** will become.
+
 ## Install It
 
 Install with **npm** using ```--save``` to add to your ```package.json``` dependencies.
@@ -29,6 +32,7 @@ Or if you prefer, just drop **canary-io.coffee** in your [Hubot][hubot] scripts 
 - **hubot canary check reset** - clear the ```hubot canary check``` cache, then get again
 - **hubot canary measure &lt;check-id&gt;** - get measurements of **check-id** for last 10 seconds
 - **hubot canary measure &lt;check-id&gt; &lt;num-seconds&gt;** - get measurements of **check-id** for last **num-seconds** seconds
+- **hubot canary summary &lt;check-id&gt;** - get summary measurements of  &lt;check-id&gt; for last 5 minutes sorted by most fails, slowest time, most successful requests
 - **hubot canary help** - get list of ```hubot canary``` commands
 
 

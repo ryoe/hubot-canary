@@ -19,5 +19,8 @@
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/ryoe/hubot-canary/issues"
+  },
+  "dependencies": {
+    "moment": "^2.6.0"
   }
 }
