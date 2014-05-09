@@ -10,7 +10,7 @@
 #   hubot canary check reset - clear the hubot canary check cache, then get again
 #   hubot canary measure <check-id> - get measurements of <check-id> for last 10 seconds
 #   hubot canary measure <check-id> <num-seconds> - get measurements of <check-id> for last <num-seconds> seconds
-#   hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most fails, slowest time, most successful requests
+#   hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most fails, slowest avg, slowest single call, slowest total time
 #   hubot canary help - get list of hubot canary commands
 #
 # Notes:
@@ -176,15 +176,19 @@ displaySummary = (msg, measurements, checkId, range) ->
         loc: loc.location
         max: loc.total_time
         min: loc.total_time
+        total: loc.total_time
+        avg: 0
         fail: 0
         success: 0
     if loc.exit_status is 0
       locMap[loc.location].success++
+      locMap[loc.location].total += loc.total_time
+      locMap[loc.location].avg = locMap[loc.location].total/locMap[loc.location].success  
     else
       locMap[loc.location].fail++
     if loc.total_time > locMap[loc.location].max
       locMap[loc.location].max = loc.total_time
-    else locMap[loc.location].min = loc.total_time  if loc.total_time < locMap[loc.location].min
+    else locMap[loc.location].min = loc.total_time  if loc.total_time < locMap[loc.location].min  
     i++
 
   locs = []
@@ -193,10 +197,12 @@ displaySummary = (msg, measurements, checkId, range) ->
   locs.sort (a, b) ->    
     #fails first
     return b.fail - a.fail  if a.fail isnt b.fail
-    #then slowest
+    #then slowest avg
+    return b.avg - a.avg  if a.avg isnt b.avg
+    #then slowest call
     return b.max - a.max  if a.max isnt b.max
-    #then most success
-    b.success - a.success
+    #then slowest total
+    b.total - a.total
 
   startDate = moment.unix(measurements[0].t)
   endDate = moment.unix(measurements[len - 1].t)
@@ -215,10 +221,12 @@ displaySummary = (msg, measurements, checkId, range) ->
 summaryDetails = (locSummary) ->
   deets = []
   deets.push locSummary.loc.toUpperCase()
-  deets.push '  # failed: ' + locSummary.fail if locSummary.fail isnt 0
+  deets.push '  failed: ' + locSummary.fail if locSummary.fail isnt 0
+  deets.push '  avg (sec): ' + locSummary.avg
   deets.push '  max (sec): ' + locSummary.max
   deets.push '  min (sec): ' + locSummary.min
-  deets.push '  # success: ' + locSummary.success
+  deets.push '  tot (sec): ' + locSummary.total
+  deets.push '  success: ' + locSummary.success
   return deets.join '\n'
 
 getHelp = (msg) ->
@@ -228,7 +236,7 @@ getHelp = (msg) ->
   help.push 'hubot canary check reset - clear the hubot canary check cache, then get again'
   help.push 'hubot canary measure <check-id> - get measurements of <check-id> for last 10 seconds'
   help.push 'hubot canary measure <check-id> <num-seconds> - get measurements of <check-id> for last <num-seconds> seconds'
-  help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most fails, slowest time, most successful requests'
+  help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most fails, slowest avg, slowest single call, slowest total time'
   help.push 'hubot canary help - get list of hubot canary commands'
 
   msg.send help.join '\n'
