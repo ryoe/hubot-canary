@@ -204,8 +204,8 @@ displaySummary = (msg, measurements, checkId, range) ->
     #then slowest total
     b.total - a.total
 
-  startDate = moment.unix(measurements[0].t)
-  endDate = moment.unix(measurements[len - 1].t)
+  startDate = moment.unix(measurements[len-1].t)
+  endDate = moment.unix(measurements[0].t)
   dateRange = startDate.format("MMM D, YYYY") + " " + startDate.format("HH:mm:ss") + " to " + endDate.format("HH:mm:ss (UTC ZZ)")
   check = measurements[0].check
 
