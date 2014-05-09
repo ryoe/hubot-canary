@@ -82,7 +82,7 @@ getMeasurements = (msg) ->
   checkId = matches[3]
   range = matches[5] || 10
 
-  #TODO: validate checkId
+  return if not isValidCheckId msg, checkId
 
   regEx = new RegExp 'XXX', 'i'
   url = measuresUrl.replace regEx, checkId
@@ -140,7 +140,7 @@ getSummary = (msg) ->
   checkId = matches[1]
   range = 300
 
-  #TODO: validate checkId
+  return if not isValidCheckId msg, checkId
 
   regEx = new RegExp 'XXX', 'i'
   url = measuresUrl.replace regEx, checkId
@@ -235,6 +235,12 @@ getUnknownCommand = (msg) ->
   list.push 'Try "hubot canary help".'
 
   msg.send list.join '\n'
+
+isValidCheckId = (msg, checkId) ->
+  c = checks[checkId]
+  return true if c?
+  msg.send '"' + checkId + '" is not a current check-id.\nTry "hubot canary check" for the current cached list.\nOr try "hubot canary reset" to clear the cache and retrive new list.'
+  return false
 
 module.exports = (robot) ->
   robot.respond /\bcanary\b/i, (msg) ->
