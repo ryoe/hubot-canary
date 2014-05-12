@@ -190,6 +190,8 @@ displaySummary = (msg, measurements, checkId, range) ->
         avg: 0
         fail: 0
         success: 0
+        http200: 0
+        httpNot200: 0
     if loc.exit_status is 0
       locMap[loc.location].success++
       locMap[loc.location].total += loc.total_time
@@ -199,13 +201,19 @@ displaySummary = (msg, measurements, checkId, range) ->
     if loc.total_time > locMap[loc.location].max
       locMap[loc.location].max = loc.total_time
     else locMap[loc.location].min = loc.total_time  if loc.total_time < locMap[loc.location].min  
+    if loc.http_status is 200
+      locMap[loc.location].http200++
+    else
+      locMap[loc.location].httpNot200++
     i++
 
   locs = []
   for prop of locMap
     locs.push locMap[prop]
   locs.sort (a, b) ->    
-    #fails first
+    #non-200 http
+    return b.httpNot200 - a.httpNot200  if a.httpNot200 isnt b.httpNot200
+    #then most fails
     return b.fail - a.fail  if a.fail isnt b.fail
     #then slowest avg
     return b.avg - a.avg  if a.avg isnt b.avg
@@ -231,12 +239,14 @@ displaySummary = (msg, measurements, checkId, range) ->
 summaryDetails = (locSummary) ->
   deets = []
   deets.push locSummary.loc.toUpperCase()
+  deets.push '  not 200: ' + locSummary.httpNot200 if locSummary.httpNot200 isnt 0
   deets.push '  failed: ' + locSummary.fail if locSummary.fail isnt 0
+  deets.push '  200: ' + locSummary.http200
+  deets.push '  success: ' + locSummary.success
   deets.push '  avg (sec): ' + locSummary.avg
   deets.push '  max (sec): ' + locSummary.max
   deets.push '  min (sec): ' + locSummary.min
   deets.push '  tot (sec): ' + locSummary.total
-  deets.push '  success: ' + locSummary.success
   return deets.join '\n'
 
 getHelp = (msg) ->
