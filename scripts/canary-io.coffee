@@ -10,7 +10,7 @@
 #   hubot canary check reset - clear the hubot canary check cache, then get again
 #   hubot canary measure <check-id> - get measurements of <check-id> for last 10 seconds
 #   hubot canary measure <check-id> <num-seconds> - get measurements of <check-id> for last <num-seconds> seconds
-#   hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most fails, slowest avg, slowest single call, slowest total time
+#   hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most non-200 http status, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time
 #   hubot canary help - get list of hubot canary commands
 #
 # Notes:
@@ -256,7 +256,7 @@ getHelp = (msg) ->
   help.push 'hubot canary check reset - clear the hubot canary check cache, then get again'
   help.push 'hubot canary measure <check-id> - get measurements of <check-id> for last 10 seconds'
   help.push 'hubot canary measure <check-id> <num-seconds> - get measurements of <check-id> for last <num-seconds> seconds'
-  help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most fails, slowest avg, slowest single call, slowest total time'
+  help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most non-200 http status, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time'
   help.push 'hubot canary help - get list of hubot canary commands'
 
   msg.send help.join '\n'
