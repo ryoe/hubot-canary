@@ -210,7 +210,7 @@ displaySummary = (msg, measurements, checkId, range) ->
   locs = []
   for prop of locMap
     locs.push locMap[prop]
-  tot = 
+  tot =
     loc: 'Total'
     max: 0
     min: 100
@@ -231,10 +231,10 @@ displaySummary = (msg, measurements, checkId, range) ->
 
   tot.avg = tot.total/tot.success
   locs.sort (a, b) ->
-    #non-200 http
-    return b.httpNot200 - a.httpNot200  if a.httpNot200 isnt b.httpNot200
-    #then most fails
+    #most failed checks
     return b.fail - a.fail  if a.fail isnt b.fail
+    #then most non-200 http
+    return b.httpNot200 - a.httpNot200  if a.httpNot200 isnt b.httpNot200
     #then slowest avg
     return b.avg - a.avg  if a.avg isnt b.avg
     #then slowest call
@@ -260,8 +260,8 @@ displaySummary = (msg, measurements, checkId, range) ->
 summaryDetails = (locSummary) ->
   deets = []
   deets.push locSummary.loc.toUpperCase()
-  deets.push '  not 200: ' + locSummary.httpNot200 if locSummary.httpNot200 isnt 0
   deets.push '  failed: ' + locSummary.fail if locSummary.fail isnt 0
+  deets.push '  not 200: ' + locSummary.httpNot200 if locSummary.httpNot200 isnt 0
   deets.push '  200: ' + locSummary.http200
   deets.push '  success: ' + locSummary.success
   deets.push '  avg (sec): ' + locSummary.avg
