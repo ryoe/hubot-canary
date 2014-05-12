@@ -210,6 +210,26 @@ displaySummary = (msg, measurements, checkId, range) ->
   locs = []
   for prop of locMap
     locs.push locMap[prop]
+  tot = 
+    loc: 'Total'
+    max: 0
+    min: 100
+    total: 0
+    avg: 0
+    fail: 0
+    success: 0
+    http200: 0
+    httpNot200: 0
+  for loc in locs
+    tot.max = loc.max if loc.max > tot.max
+    tot.min = loc.min if loc.min < tot.min
+    tot.total += loc.total
+    tot.fail += loc.fail
+    tot.success += loc.success
+    tot.http200 += loc.http200
+    tot.httpNot200 += loc.httpNot200
+
+  tot.avg = tot.total/tot.success
   locs.sort (a, b) ->
     #non-200 http
     return b.httpNot200 - a.httpNot200  if a.httpNot200 isnt b.httpNot200
@@ -222,6 +242,7 @@ displaySummary = (msg, measurements, checkId, range) ->
     #then slowest total
     b.total - a.total
 
+  locs.unshift tot
   startDate = moment.unix(measurements[len-1].t)
   endDate = moment.unix(measurements[0].t)
   dateRange = startDate.format("MMM D, YYYY") + " " + startDate.format("HH:mm:ss") + " to " + endDate.format("HH:mm:ss (UTC ZZ)")
