@@ -195,12 +195,12 @@ displaySummary = (msg, measurements, checkId, range) ->
     if loc.exit_status is 0
       locMap[loc.location].success++
       locMap[loc.location].total += loc.total_time
-      locMap[loc.location].avg = locMap[loc.location].total/locMap[loc.location].success  
+      locMap[loc.location].avg = locMap[loc.location].total/locMap[loc.location].success
     else
       locMap[loc.location].fail++
     if loc.total_time > locMap[loc.location].max
       locMap[loc.location].max = loc.total_time
-    else locMap[loc.location].min = loc.total_time  if loc.total_time < locMap[loc.location].min  
+    else locMap[loc.location].min = loc.total_time  if loc.total_time < locMap[loc.location].min
     if loc.http_status is 200
       locMap[loc.location].http200++
     else
@@ -210,7 +210,7 @@ displaySummary = (msg, measurements, checkId, range) ->
   locs = []
   for prop of locMap
     locs.push locMap[prop]
-  locs.sort (a, b) ->    
+  locs.sort (a, b) ->
     #non-200 http
     return b.httpNot200 - a.httpNot200  if a.httpNot200 isnt b.httpNot200
     #then most fails
