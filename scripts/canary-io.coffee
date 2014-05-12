@@ -25,6 +25,16 @@ checksMap = {}
 checksUrl = 'http://checks.canary.io'
 measuresUrl = 'https://api.canary.io/checks/XXX/measurements?range=YYY'
 
+module.exports = (robot) ->
+  robot.respond /\bcanary\b/i, (msg) ->
+    text = msg.message.text
+
+    if checks.length == 0 #sanity check
+      getChecks msg, true, (err, data) ->
+        processCanaryCmd msg, text if not err
+    else
+      processCanaryCmd msg, text
+
 apiCall = (msg, url, cb) ->
   msg.http(url)
     .headers(Accept: 'application/json')
@@ -265,15 +275,4 @@ processCanaryCmd = (msg, text) ->
     getSummary msg
   else
     getUnknownCommand msg
-
-module.exports = (robot) ->
-  robot.respond /\bcanary\b/i, (msg) ->
-    text = msg.message.text
-
-    if checks.length == 0 #sanity check
-      getChecks msg, true, (err, data) ->
-        processCanaryCmd msg, text if not err
-    else
-      processCanaryCmd msg, text
-
 
