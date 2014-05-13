@@ -282,11 +282,11 @@ summaryDetails = (locSummary) ->
   deets.push '  3xx: ' + locSummary.http3xx if locSummary.http3xx isnt 0
   deets.push '  2xx: ' + locSummary.http2xx if locSummary.http2xx isnt 0
   deets.push '  1xx: ' + locSummary.http1xx if locSummary.http1xx isnt 0
-  deets.push '  success: ' + locSummary.success
-  deets.push '  avg (sec): ' + locSummary.avg
-  deets.push '  max (sec): ' + locSummary.max
-  deets.push '  min (sec): ' + locSummary.min
-  deets.push '  tot (sec): ' + locSummary.total
+#  deets.push '  success: ' + locSummary.success
+#  deets.push '  avg (sec): ' + locSummary.avg
+#  deets.push '  max (sec): ' + locSummary.max
+#  deets.push '  min (sec): ' + locSummary.min
+ # deets.push '  tot (sec): ' + locSummary.total
   return deets.join '\n'
 
 getHelp = (msg) ->
