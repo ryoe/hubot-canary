@@ -162,6 +162,7 @@ stopMonitor = (msg) ->
   if monitors.length == 0
     clearInterval monInterval
     monInterval = null
+    msg.send 'All monitors cleared.'
 
 startMonitor = (msg) ->
   text = msg.message.text
@@ -181,11 +182,13 @@ startMonitor = (msg) ->
   idx = monitors.indexOf checkId
   monitors.push checkId if idx < 0
   delay = 5000
-  monInterval = setInterval processMonitors, delay, msg if not monInterval?
+  if not monInterval?
+    processMonitors msg #show results now!
+    monInterval = setInterval processMonitors, delay, msg
 
 processMonitors = (msg) ->
   range = 300
-  getSummaryData msg, checkId, range for checkId in monitors
+  getSummaryData msg, checkId, range, true for checkId in monitors
 
 getSummary = (msg) ->
   text = msg.message.text
@@ -198,9 +201,9 @@ getSummary = (msg) ->
   checkId = matches[1]
   return if not isValidCheckId msg, checkId
   range = 300
-  getSummaryData msg, checkId, range
+  getSummaryData msg, checkId, range, false
 
-getSummaryData = (msg, checkId, range) ->
+getSummaryData = (msg, checkId, range, totalOnly) ->
   regEx = new RegExp 'XXX', 'i'
   url = measuresUrl.replace regEx, checkId
   regEx = new RegExp 'YYY', 'i'
@@ -213,9 +216,9 @@ getSummaryData = (msg, checkId, range) ->
       return
 
     data = JSON.parse body
-    displaySummary msg, data, checkId, range
+    displaySummary msg, data, checkId, range, totalOnly
 
-displaySummary = (msg, measurements, checkId, range) ->
+displaySummary = (msg, measurements, checkId, range, totalOnly) ->
   if measurements.length == 0
     msg.send 'Zero measurements found for ' + checkId + ' in last ' + range + ' seconds.'
     return
@@ -303,7 +306,9 @@ displaySummary = (msg, measurements, checkId, range) ->
     #then slowest total
     b.total - a.total
 
-  locs.unshift tot
+  if totalOnly
+    locs = [tot]
+  else locs.unshift tot
   startDate = moment.unix(measurements[len-1].t)
   endDate = moment.unix(measurements[0].t)
   dateRange = startDate.format("MMM D, YYYY") + " " + startDate.format("HH:mm:ss") + " to " + endDate.format("HH:mm:ss (UTC ZZ)")
