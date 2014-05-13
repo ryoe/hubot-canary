@@ -10,7 +10,7 @@
 #   hubot canary check reset - clear the hubot canary check cache, then get again
 #   hubot canary measure <check-id> - get measurements of <check-id> for last 10 seconds
 #   hubot canary measure <check-id> <num-seconds> - get measurements of <check-id> for last <num-seconds> seconds
-#   hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most non-200 http status, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time
+#   hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time
 #   hubot canary help - get list of hubot canary commands
 #
 # Notes:
@@ -190,8 +190,11 @@ displaySummary = (msg, measurements, checkId, range) ->
         avg: 0
         fail: 0
         success: 0
-        http200: 0
-        httpNot200: 0
+        http1xx: 0
+        http2xx: 0
+        http3xx: 0
+        http4xx: 0
+        http5xx: 0
     if loc.exit_status is 0
       locMap[loc.location].success++
       locMap[loc.location].total += loc.total_time
@@ -201,10 +204,17 @@ displaySummary = (msg, measurements, checkId, range) ->
     if loc.total_time > locMap[loc.location].max
       locMap[loc.location].max = loc.total_time
     else locMap[loc.location].min = loc.total_time  if loc.total_time < locMap[loc.location].min
-    if loc.http_status is 200
-      locMap[loc.location].http200++
+    httpStatus = loc.http_status
+    if httpStatus >= 200 and httpStatus < 300
+      locMap[loc.location].http2xx++
+    else if httpStatus >= 300 and httpStatus < 400
+      locMap[loc.location].http3xx++
+    else if httpStatus >= 400 and httpStatus < 500
+      locMap[loc.location].http4xx++
+    else if httpStatus >= 500
+      locMap[loc.location].http5xx++
     else
-      locMap[loc.location].httpNot200++
+      locMap[loc.location].http1xx++
     i++
 
   locs = []
@@ -218,23 +228,29 @@ displaySummary = (msg, measurements, checkId, range) ->
     avg: 0
     fail: 0
     success: 0
-    http200: 0
-    httpNot200: 0
+    http1xx: 0
+    http2xx: 0
+    http3xx: 0
+    http4xx: 0
+    http5xx: 0
   for loc in locs
     tot.max = loc.max if loc.max > tot.max
     tot.min = loc.min if loc.min < tot.min
     tot.total += loc.total
     tot.fail += loc.fail
     tot.success += loc.success
-    tot.http200 += loc.http200
-    tot.httpNot200 += loc.httpNot200
+    tot.http1xx += loc.http1xx
+    tot.http2xx += loc.http2xx
+    tot.http3xx += loc.http3xx
+    tot.http4xx += loc.http4xx
+    tot.http5xx += loc.http5xx
 
   tot.avg = tot.total/tot.success
   locs.sort (a, b) ->
+    #then most http status 5xx
+    return b.http5xx- a.http5xx  if a.http5xx isnt b.http5xx
     #most failed checks
     return b.fail - a.fail  if a.fail isnt b.fail
-    #then most non-200 http
-    return b.httpNot200 - a.httpNot200  if a.httpNot200 isnt b.httpNot200
     #then slowest avg
     return b.avg - a.avg  if a.avg isnt b.avg
     #then slowest call
@@ -261,8 +277,11 @@ summaryDetails = (locSummary) ->
   deets = []
   deets.push locSummary.loc.toUpperCase()
   deets.push '  failed: ' + locSummary.fail if locSummary.fail isnt 0
-  deets.push '  not 200: ' + locSummary.httpNot200 if locSummary.httpNot200 isnt 0
-  deets.push '  200: ' + locSummary.http200
+  deets.push '  5xx: ' + locSummary.http5xx if locSummary.http5xx isnt 0
+  deets.push '  4xx: ' + locSummary.http4xx if locSummary.http4xx isnt 0
+  deets.push '  3xx: ' + locSummary.http3xx if locSummary.http3xx isnt 0
+  deets.push '  2xx: ' + locSummary.http2xx if locSummary.http2xx isnt 0
+  deets.push '  1xx: ' + locSummary.http1xx if locSummary.http1xx isnt 0
   deets.push '  success: ' + locSummary.success
   deets.push '  avg (sec): ' + locSummary.avg
   deets.push '  max (sec): ' + locSummary.max
@@ -277,7 +296,7 @@ getHelp = (msg) ->
   help.push 'hubot canary check reset - clear the hubot canary check cache, then get again'
   help.push 'hubot canary measure <check-id> - get measurements of <check-id> for last 10 seconds'
   help.push 'hubot canary measure <check-id> <num-seconds> - get measurements of <check-id> for last <num-seconds> seconds'
-  help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most non-200 http status, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time'
+  help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time'
   help.push 'hubot canary help - get list of hubot canary commands'
 
   msg.send help.join '\n'

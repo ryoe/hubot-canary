@@ -33,7 +33,7 @@ Or if you prefer, just drop **canary-io.coffee** in your [Hubot][hubot] scripts 
 - **hubot canary check reset** - clear the ```hubot canary check``` cache, then get again
 - **hubot canary measure &lt;check-id&gt;** - get measurements of **check-id** for last 10 seconds
 - **hubot canary measure &lt;check-id&gt; &lt;num-seconds&gt;** - get measurements of **check-id** for last **num-seconds** seconds
-- **hubot canary summary &lt;check-id&gt;** - get summary measurements of  &lt;check-id&gt; for last 5 minutes sorted by most failed checks (non-zero exit_status), most non-200 http status, slowest avg, slowest single call, slowest total time
+- **hubot canary summary &lt;check-id&gt;** - get summary measurements of  &lt;check-id&gt; for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time
 - **hubot canary help** - get list of ```hubot canary``` commands
 
 
