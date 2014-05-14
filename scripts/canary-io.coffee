@@ -53,6 +53,8 @@ processCanaryCmd = (msg, text) ->
     getSummary msg
   else if text.match(/\bmon\b/i)
     startMonitor msg
+  else if text.match(/\bincident\b/i)
+    startIncident msg
   else
     getUnknownCommand msg
 
@@ -148,6 +150,18 @@ stopMonitor = (msg) ->
     monInterval = null
     msg.send 'All monitors cleared.'
 
+startIncident = (msg) ->
+  text = msg.message.text
+  matches = text.match(/\bincident\b(\s*)+(\S*)+\b(\s*)?/i)
+
+  if not matches?
+    getUnknownCommand msg
+    return
+
+  checkId = matches[2]
+  return if not isValidCheckId msg, checkId
+  setupMonitor msg, checkId, false
+
 startMonitor = (msg) ->
   text = msg.message.text
   if text.match(/\bmon\b stop/i)
@@ -162,16 +176,19 @@ startMonitor = (msg) ->
 
   checkId = matches[2]
   return if not isValidCheckId msg, checkId
+  setupMonitor msg, checkId, true
+
+setupMonitor = (msg, checkId, isMon) ->
   idx = monitors.indexOf checkId
   monitors.push checkId if idx < 0
   delay = 5000
   if not monInterval?
     processMonitors msg #show results now!
-    monInterval = setInterval processMonitors, delay, msg
+    monInterval = setInterval processMonitors, delay, msg, isMon
 
-processMonitors = (msg) ->
+processMonitors = (msg, isMon) ->
   range = MAX_RANGE
-  getSummaryData msg, checkId, range, true for checkId in monitors
+  getSummaryData msg, checkId, range, true, isMon for checkId in monitors
 
 getSummary = (msg) ->
   text = msg.message.text
@@ -184,9 +201,9 @@ getSummary = (msg) ->
   checkId = matches[2]
   return if not isValidCheckId msg, checkId
   range = MAX_RANGE
-  getSummaryData msg, checkId, range, false
+  getSummaryData msg, checkId, range, false, true
 
-getSummaryData = (msg, checkId, range, totalOnly) ->
+getSummaryData = (msg, checkId, range, totalOnly, isMon) ->
   regEx = new RegExp 'XXX', 'i'
   url = measuresUrl.replace regEx, checkId
   regEx = new RegExp 'YYY', 'i'
@@ -199,11 +216,11 @@ getSummaryData = (msg, checkId, range, totalOnly) ->
       return
 
     data = JSON.parse body
-    displaySummary msg, data, checkId, range, totalOnly
+    displaySummary msg, data, checkId, range, totalOnly, isMon
 
-displaySummary = (msg, measurements, checkId, range, totalOnly) ->
+displaySummary = (msg, measurements, checkId, range, totalOnly, isMon) ->
   if measurements.length == 0
-    msg.send 'Zero measurements found for ' + checkId + ' in last ' + range + ' seconds.'
+    msg.send "Zero measurements found for #{checkId} in last #{range} seconds."
     return
 
   locMap = {}
@@ -302,24 +319,19 @@ displaySummary = (msg, measurements, checkId, range, totalOnly) ->
   deets.push dateRange
   deets.push 'Total measurements: ' + len
   deets.push '--------------------'
-  deets.push summaryDetails s for s in locs
+  deets.push summaryDetails s, isMon for s in locs
 
   msg.send deets.join '\n'
 
-summaryDetails = (locSummary) ->
+summaryDetails = (locSummary, isMon) ->
   deets = []
   deets.push locSummary.loc.toUpperCase()
   deets.push '  failed: ' + locSummary.fail if locSummary.fail isnt 0
   deets.push '  5xx: ' + locSummary.http5xx if locSummary.http5xx isnt 0
-  deets.push '  4xx: ' + locSummary.http4xx if locSummary.http4xx isnt 0
-  deets.push '  3xx: ' + locSummary.http3xx if locSummary.http3xx isnt 0
-  deets.push '  2xx: ' + locSummary.http2xx if locSummary.http2xx isnt 0
-  deets.push '  1xx: ' + locSummary.http1xx if locSummary.http1xx isnt 0
-#  deets.push '  success: ' + locSummary.success
-#  deets.push '  avg (sec): ' + locSummary.avg
-#  deets.push '  max (sec): ' + locSummary.max
-#  deets.push '  min (sec): ' + locSummary.min
- # deets.push '  tot (sec): ' + locSummary.total
+  deets.push '  4xx: ' + locSummary.http4xx if isMon and locSummary.http4xx isnt 0
+  deets.push '  3xx: ' + locSummary.http3xx if isMon and locSummary.http3xx isnt 0
+  deets.push '  2xx: ' + locSummary.http2xx if isMon and locSummary.http2xx isnt 0
+  deets.push '  1xx: ' + locSummary.http1xx if isMon and locSummary.http1xx isnt 0
   return deets.join '\n'
 
 getHelp = (msg) ->
