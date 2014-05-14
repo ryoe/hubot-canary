@@ -8,8 +8,8 @@
 #   hubot canary check - get the list of URLs which have measurements taken by canary.io 
 #   hubot canary check <filter> - get filtered list of checked URLs. Coming soon!
 #   hubot canary check reset - clear the hubot canary check cache, then get again
-#   hubot canary measure <check-id> - get measurements of <check-id> for last 10 seconds
-#   hubot canary measure <check-id> <num-seconds> - get measurements of <check-id> for last <num-seconds> seconds
+#   hubot canary measure <check-id> - get url to download measurements of <check-id> for last 10 seconds
+#   hubot canary measure <check-id> <num-seconds> - get url to download measurements of <check-id> for last <num-seconds> seconds
 #   hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>
 #   hubot canary mon stop <check-id> - stop monitoring <check-id>
 #   hubot canary mon stop all - stop all monitoring
@@ -111,46 +111,7 @@ getMeasurements = (msg) ->
   url = measuresUrl.replace regEx, checkId
   regEx = new RegExp 'YYY', 'i'
   url = url.replace regEx, range
-
-  apiCall msg, url, (err, body) ->
-    if err
-      console.log err
-      msg.send body
-      return
-
-    data = JSON.parse body
-    displayMeasurements msg, data, checkId, range
-
-displayMeasurements = (msg, measurements, checkId, range) ->
-  if measurements.length == 0
-    msg.send 'Zero measurements found for ' + checkId + ' in last ' + range + ' seconds.'
-    return
-
-  check = measurements[0].check
-
-  deets = []
-  deets.push measurements.length + ' measurements found for ' + check.url + ' in last ' + range + ' seconds.'
-  deets.push '--------------------'
-  deets.push measurementDetails m for m in measurements
-
-  msg.send deets.join '\n'
-
-measurementDetails = (measurement) ->
-  deets = []
-  deets.push 'id: ' + measurement.id
-  deets.push 'timestamp: ' + measurement.t
-  deets.push 'total time: ' + measurement.total_time
-  deets.push 'connect time: ' + measurement.connect_time
-  deets.push 'start transfer time: ' + measurement.starttransfer_time
-  deets.push 'name lookup time: ' + measurement.namelookup_time
-  deets.push 'location: ' + measurement.location
-  deets.push 'exit status: ' + measurement.exit_status
-  deets.push 'http status: ' + measurement.http_status
-  deets.push 'local ip: ' + measurement.local_ip
-  deets.push 'primary ip: ' + measurement.primary_ip
-  deets.push '--------------------'
-
-  return deets.join '\n'
+  msg.send "#{url}"
 
 stopMonitor = (msg) ->
   text = msg.message.text
@@ -352,8 +313,8 @@ getHelp = (msg) ->
   help.push 'hubot canary check - get the list of URLs which have measurements taken by canary.io' 
   help.push 'hubot canary check <filter> - get filtered list of checked URLs. Coming soon!'
   help.push 'hubot canary check reset - clear the hubot canary check cache, then get again'
-  help.push 'hubot canary measure <check-id> - get measurements of <check-id> for last 10 seconds'
-  help.push 'hubot canary measure <check-id> <num-seconds> - get measurements of <check-id> for last <num-seconds> seconds'
+  help.push 'hubot canary measure <check-id> - get url to download measurements of <check-id> for last 10 seconds'
+  help.push 'hubot canary measure <check-id> <num-seconds> - get url to download measurements of <check-id> for last <num-seconds> seconds'
   help.push 'hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>'
   help.push 'hubot canary mon stop <check-id> - stop monitoring <check-id>'
   help.push 'hubot canary mon stop all - stop all monitoring'
