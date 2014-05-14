@@ -42,6 +42,20 @@ module.exports = (robot) ->
     else
       processCanaryCmd msg, text
 
+processCanaryCmd = (msg, text) ->
+  if text.match(/\bcheck(s)?\b/i)
+    getChecks msg, false, null
+  else if text.match(/\bhelp\b/i)
+    getHelp msg
+  else if text.match(/\bmeasure(ment)?(s)?\b/i)
+    getMeasurements msg
+  else if text.match(/\bsummary?(s)?\b/i)
+    getSummary msg
+  else if text.match(/\bmon\b/i)
+    startMonitor msg
+  else
+    getUnknownCommand msg
+
 apiCall = (msg, url, cb) ->
   msg.http(url)
     .headers(Accept: 'application/json')
@@ -335,18 +349,3 @@ isValidCheckId = (msg, checkId) ->
   return true if c?
   msg.send '"' + checkId + '" is not a current check-id.\nTry "hubot canary check" for the current cached list.\nOr try "hubot canary reset" to clear the cache and retrive new list.'
   return false
-
-processCanaryCmd = (msg, text) ->
-  if text.match(/\bcheck(s)?\b/i)
-    getChecks msg, false, null
-  else if text.match(/\bhelp\b/i)
-    getHelp msg
-  else if text.match(/\bmeasure(ment)?(s)?\b/i)
-    getMeasurements msg
-  else if text.match(/\bsummary?(s)?\b/i)
-    getSummary msg
-  else if text.match(/\bmon\b/i)
-    startMonitor msg
-  else
-    getUnknownCommand msg
-
