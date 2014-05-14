@@ -23,6 +23,8 @@
 #   ryoe
 moment = require 'moment'
 
+MAX_RANGE = 300
+DEFAULT_RANGE = 10
 checks = []
 checksMap = {}
 monitors = []
@@ -99,7 +101,9 @@ getMeasurements = (msg) ->
     return
 
   checkId = matches[3]
-  range = matches[5] || 10
+  range = matches[5] || DEFAULT_RANGE
+  range = MAX_RANGE if range > MAX_RANGE
+  range = DEFAULT_RANGE if range <= 0
 
   return if not isValidCheckId msg, checkId
 
@@ -191,7 +195,7 @@ startMonitor = (msg) ->
     monInterval = setInterval processMonitors, delay, msg
 
 processMonitors = (msg) ->
-  range = 300
+  range = MAX_RANGE
   getSummaryData msg, checkId, range, true for checkId in monitors
 
 getSummary = (msg) ->
@@ -204,7 +208,7 @@ getSummary = (msg) ->
 
   checkId = matches[2]
   return if not isValidCheckId msg, checkId
-  range = 300
+  range = MAX_RANGE
   getSummaryData msg, checkId, range, false
 
 getSummaryData = (msg, checkId, range, totalOnly) ->
