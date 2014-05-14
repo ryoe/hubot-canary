@@ -12,6 +12,7 @@
 #   hubot canary measure <check-id> <num-seconds> - get measurements of <check-id> for last <num-seconds> seconds
 #   hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>
 #   hubot canary mon stop <check-id> - stop monitoring <check-id>
+#   hubot canary mon stop all - stop all monitoring
 #   hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time
 #   hubot canary help - get list of hubot canary commands
 #
@@ -149,14 +150,18 @@ measurementDetails = (measurement) ->
 
 stopMonitor = (msg) ->
   text = msg.message.text
-  matches = text.match(/\bmon\b stop \b(\S*)+\b(\s*)?/i)
+  matches = text.match(/\bmon\b stop(\s*)+\b(all|\S*)+\b(\s*)?/i)
 
   if not matches?
     getUnknownCommand msg
     return
 
-  checkId = matches[1]
-  return if not isValidCheckId msg, checkId
+  checkId = matches[2]
+  if checkId.localeCompare('all') != 0
+    return if not isValidCheckId msg, checkId
+  else
+    monitors = []
+
   idx = monitors.indexOf checkId
   monitors.splice idx, 1 if idx > -1
   if monitors.length == 0
@@ -170,14 +175,13 @@ startMonitor = (msg) ->
     stopMonitor msg
     return
 
-  matches = text.match(/\bmon\b (\S*)+\b(\s*)?/i)
+  matches = text.match(/\bmon\b(\s*)+(\S*)+\b(\s*)?/i)
 
   if not matches?
     getUnknownCommand msg
     return
 
-  checkId = matches[1]
-
+  checkId = matches[2]
   return if not isValidCheckId msg, checkId
   idx = monitors.indexOf checkId
   monitors.push checkId if idx < 0
@@ -192,13 +196,13 @@ processMonitors = (msg) ->
 
 getSummary = (msg) ->
   text = msg.message.text
-  matches = text.match(/\bsummary\b \b(\S*)+\b(\s*)?/i)
+  matches = text.match(/\bsummary\b(\s*)+\b(\S*)+\b(\s*)?/i)
 
   if not matches?
     getUnknownCommand msg
     return
 
-  checkId = matches[1]
+  checkId = matches[2]
   return if not isValidCheckId msg, checkId
   range = 300
   getSummaryData msg, checkId, range, false
@@ -348,6 +352,7 @@ getHelp = (msg) ->
   help.push 'hubot canary measure <check-id> <num-seconds> - get measurements of <check-id> for last <num-seconds> seconds'
   help.push 'hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>'
   help.push 'hubot canary mon stop <check-id> - stop monitoring <check-id>'
+  help.push 'hubot canary mon stop all - stop all monitoring'
   help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time'
   help.push 'hubot canary help - get list of hubot canary commands'
 
