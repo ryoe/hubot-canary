@@ -5,15 +5,15 @@
 #   "moment": "^2.6.0"
 #
 # Commands:
+#   hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>
+#   hubot canary mon stop <check-id> - stop monitoring <check-id>
+#   hubot canary mon stop all - stop all monitoring
+#   hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time
 #   hubot canary check - get the list of URLs which have measurements taken by canary.io 
 #   hubot canary check <filter> - get filtered list of checked URLs. Coming soon!
 #   hubot canary check reset - clear the hubot canary check cache, then get again
 #   hubot canary measure <check-id> - get url to download measurements of <check-id> for last 10 seconds
 #   hubot canary measure <check-id> <num-seconds> - get url to download measurements of <check-id> for last <num-seconds> seconds
-#   hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>
-#   hubot canary mon stop <check-id> - stop monitoring <check-id>
-#   hubot canary mon stop all - stop all monitoring
-#   hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time
 #   hubot canary help - get list of hubot canary commands
 #
 # Notes:
@@ -310,15 +310,15 @@ summaryDetails = (locSummary) ->
 
 getHelp = (msg) ->
   help = []
+  help.push 'hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>'
+  help.push 'hubot canary mon stop <check-id> - stop monitoring <check-id>'
+  help.push 'hubot canary mon stop all - stop all monitoring'
+  help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time'
   help.push 'hubot canary check - get the list of URLs which have measurements taken by canary.io' 
   help.push 'hubot canary check <filter> - get filtered list of checked URLs. Coming soon!'
   help.push 'hubot canary check reset - clear the hubot canary check cache, then get again'
   help.push 'hubot canary measure <check-id> - get url to download measurements of <check-id> for last 10 seconds'
   help.push 'hubot canary measure <check-id> <num-seconds> - get url to download measurements of <check-id> for last <num-seconds> seconds'
-  help.push 'hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>'
-  help.push 'hubot canary mon stop <check-id> - stop monitoring <check-id>'
-  help.push 'hubot canary mon stop all - stop all monitoring'
-  help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time'
   help.push 'hubot canary help - get list of hubot canary commands'
 
   msg.send help.join '\n'
