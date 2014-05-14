@@ -30,7 +30,7 @@ Or if you prefer, just drop **canary-io.coffee** in your [Hubot][hubot] scripts 
 
 - **hubot canary mon &lt;check-id&gt;** - start monitoring &lt;check-id&gt;. every 5 seconds send ```hubot canary summary <check-id>```
 - **hubot canary mon stop &lt;check-id&gt;** - stop monitoring &lt;check-id&gt;
-- **hubot canary mon stop all - stop all monitoring
+- **hubot canary mon stop all** - stop all monitoring
 - **hubot canary summary &lt;check-id&gt;** - get summary measurements of  &lt;check-id&gt; for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time
 - **hubot canary check** - get the list of URLs which have measurements taken by [canary.io][canary] 
 - **hubot canary check &lt;filter&gt;** - get filtered list of checked URLs. Coming soon!
