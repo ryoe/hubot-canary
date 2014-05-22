@@ -3,7 +3,7 @@
 A [Hubot][hubot] script to query the [canary.io API][canary].
 
 [hubot]: https://github.com/github/hubot
-[canary]: http://canary.io
+[canary]: http://www.canary.io/
 [canary-gh]: https://github.com/canaryio
 [ember]: http://emberjs.com/
 
