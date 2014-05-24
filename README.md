@@ -36,6 +36,7 @@ Or if you prefer, just drop **canary-io.coffee** in your [Hubot][hubot] scripts 
 - **hubot canary check** - get the list of URLs which have measurements taken by [canary.io][canary] 
 - **hubot canary check &lt;filter&gt;** - get filtered list of checked URLs. Coming soon!
 - **hubot canary check reset** - clear the ```hubot canary check``` cache, then get again
+- **hubot canary watch &lt;check-id&gt;** - get url to open &lt;check-id&gt; for real-time monitoring in http://watch.canary.io
 - **hubot canary measure &lt;check-id&gt;** - get url to download measurements of **check-id** for last 10 seconds
 - **hubot canary measure &lt;check-id&gt; &lt;num-seconds&gt;** - get url to download measurements of **check-id** for last **num-seconds** seconds
 - **hubot canary help** - get list of ```hubot canary``` commands

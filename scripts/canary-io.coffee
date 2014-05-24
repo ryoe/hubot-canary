@@ -13,6 +13,7 @@
 #   hubot canary check - get the list of URLs which have measurements taken by canary.io 
 #   hubot canary check <filter> - get filtered list of checked URLs. Coming soon!
 #   hubot canary check reset - clear the hubot canary check cache, then get again
+#   hubot canary watch <check-id> - get url to open <check-id> for real-time monitoring in http://watch.canary.io
 #   hubot canary measure <check-id> - get url to download measurements of <check-id> for last 10 seconds
 #   hubot canary measure <check-id> <num-seconds> - get url to download measurements of <check-id> for last <num-seconds> seconds
 #   hubot canary help - get list of hubot canary commands
@@ -32,6 +33,8 @@ monitors = []
 monInterval = null
 checksUrl = 'http://checks.canary.io'
 measuresUrl = 'https://api.canary.io/checks/XXX/measurements?range=YYY'
+watchUrl = 'http://watch.canary.io/'
+watchReplaceUrl = 'http://watch.canary.io/#/checks/XXX/measurements'
 
 module.exports = (robot) ->
   robot.respond /\bcanary\b/i, (msg) ->
@@ -56,6 +59,8 @@ processCanaryCmd = (msg, text) ->
     startMonitor msg
   else if text.match(/\bincident\b/i)
     startIncident msg
+  else if text.match(/\bwatch\b/i)
+    getWatchUrl msg
   else
     getUnknownCommand msg
 
@@ -108,6 +113,26 @@ displayChecks = (msg) ->
 
 checkDetails = (check) ->
   return 'id: ' + check.id + ' => url: ' + check.url
+
+getWatchUrl = (msg) ->
+  text = msg.message.text
+  matches = text.match(/\bwatch\b(\s*)?(\S*)?/i)
+
+  if not matches?
+    getUnknownCommand msg
+    return
+
+  checkId = matches[2] || null
+  if not checkId?
+    url = watchUrl
+    msg.send "WARN: No <check-id> provided.\n#{url}"
+    return
+
+  return if not isValidCheckId msg, checkId
+
+  regEx = new RegExp 'XXX', 'i'
+  url = watchReplaceUrl.replace regEx, checkId
+  msg.send "#{url}"
 
 getMeasurements = (msg) ->
   text = msg.message.text
@@ -345,6 +370,7 @@ getHelp = (msg) ->
   help.push 'hubot canary check - get the list of URLs which have measurements taken by canary.io' 
   help.push 'hubot canary check <filter> - get filtered list of checked URLs. Coming soon!'
   help.push 'hubot canary check reset - clear the hubot canary check cache, then get again'
+  help.push 'hubot canary watch <check-id> - get url to open <check-id> for real-time monitoring in http://watch.canary.io'
   help.push 'hubot canary measure <check-id> - get url to download measurements of <check-id> for last 10 seconds'
   help.push 'hubot canary measure <check-id> <num-seconds> - get url to download measurements of <check-id> for last <num-seconds> seconds'
   help.push 'hubot canary help - get list of hubot canary commands'
