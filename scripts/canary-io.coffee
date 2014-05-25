@@ -28,18 +28,20 @@ querystring = require 'querystring'
 
 MAX_RANGE = 300
 DEFAULT_RANGE = 10
-checks = []
-checksMap = {}
 monitors = []
 monInterval = null
-checksUrl = 'http://checks.canary.io'
 measuresUrl = 'https://api.canary.io/checks/XXX/measurements?range=YYY'
 watchUrl = 'http://watch.canary.io/'
 watchReplaceUrl = 'http://watch.canary.io/#/checks/XXX/measurements'
+checks = null
+help = null
 rbt = null
 
 module.exports = (robot) ->
   rbt = robot
+  help = new Help
+  checks = new Checks
+  
   robot.error (err, msg) ->
     console.log 'guh'
     console.log err
@@ -48,10 +50,12 @@ module.exports = (robot) ->
     if msg?
       msg.reply "DOES NOT COMPUTE"
 
-  robot.on 'canary:incEvt', (arg1) ->
-    console.log 'canary:incEvt'
-    console.log arg1
-    robot.messageRoom '109614_demo@conf.hipchat.com', 'hell yeah!'
+  robot.on 'hubot-canary:incEvt', (data) ->
+    console.log 'hubot-canary:incEvt'
+    console.log data
+    room = data.room || '109614_demo@conf.hipchat.com'
+    dataMsg = data.message || 'It is important that you know, no was message received!'
+    robot.messageRoom room, dataMsg
 
   robot.router.post '/hubot/incident', (req, res) ->
     data = req.body
@@ -89,7 +93,7 @@ module.exports = (robot) ->
   robot.respond /\bcanary\b/i, (msg) ->
     text = msg.message.text
 
-    if checks.length == 0 #sanity check
+    if checks.length() == 0 #sanity check
       getChecks msg, true, (err, data) ->
         processCanaryCmd msg, text if not err
     else
@@ -114,6 +118,7 @@ processCanaryCmd = (msg, text) ->
     getUnknownCommand msg
 
 apiCall = (msg, url, cb) ->
+  console.log url
   msg.http(url)
     .headers(Accept: 'application/json')
     .get() (err, res, body) ->
@@ -136,32 +141,27 @@ getChecks = (msg, silent, cb) ->
   text = msg.message.text
 
   if text.match(/\breset\b/i)
-    checks = []
+    checks.reset()
 
-  if checks.length > 0
+  if checks.length() > 0
     #use cached checks
     displayChecks msg if not silent
     cb null, null if cb
     return
 
-  apiCall msg, checksUrl, (err, body) ->
+  apiCall msg, checks.url(), (err, body) ->
     if err
       console.log err
       msg.send body
       return
 
-    checks = JSON.parse body
-    checksMap[c.id] = c for c in checks
+    data = JSON.parse body
+    checks.load data
     displayChecks msg if not silent
     cb null, null if cb
 
 displayChecks = (msg) ->
-  deets = []
-  deets.push checkDetails c for c in checks
-  msg.send deets.join '\n'
-
-checkDetails = (check) ->
-  return 'id: ' + check.id + ' => url: ' + check.url
+  msg.send checks.toString()
 
 getWatchUrl = (msg) ->
   text = msg.message.text
@@ -265,7 +265,7 @@ processMonitors = (msg, isMon) ->
   range = MAX_RANGE
   getSummaryData msg, checkId, range, true, isMon for checkId in monitors
   console.log 'emit'
-  rbt.emit 'canary:incEvt', { msg: 'boom'}
+  rbt.emit 'hubot-canary:incEvt', { msg: 'boom'}
   console.log 'post-emit'
 
 getSummary = (msg) ->
@@ -390,10 +390,10 @@ displaySummary = (msg, measurements, checkId, range, totalOnly, isMon) ->
   startDate = moment.unix(measurements[len-1].t)
   endDate = moment.unix(measurements[0].t)
   dateRange = startDate.format("MMM D, YYYY") + " " + startDate.format("HH:mm:ss") + " to " + endDate.format("HH:mm:ss (UTC ZZ)")
-  check = measurements[0].check
+  chk = measurements[0].check
 
   deets = []
-  deets.push 'Summary for '+ check.url
+  deets.push 'Summary for '+ chk.url
   deets.push dateRange
   deets.push 'Total measurements: ' + len
   deets.push '--------------------'
@@ -413,21 +413,7 @@ summaryDetails = (locSummary, isMon) ->
   return deets.join '\n'
 
 getHelp = (msg) ->
-  help = []
-  help.push 'hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>'
-  help.push 'hubot canary mon stop <check-id> - stop monitoring <check-id>'
-  help.push 'hubot canary mon stop all - stop all monitoring'
-  help.push 'hubot canary incident <check-id> - same as "hubot canary mon <check-id>" but only display 5xx http status and non-zero exit status (failures)'
-  help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time'
-  help.push 'hubot canary check - get the list of URLs which have measurements taken by canary.io' 
-  help.push 'hubot canary check <filter> - get filtered list of checked URLs. Coming soon!'
-  help.push 'hubot canary check reset - clear the hubot canary check cache, then get again'
-  help.push 'hubot canary watch <check-id> - get url to open <check-id> for real-time monitoring in http://watch.canary.io'
-  help.push 'hubot canary measure <check-id> - get url to download measurements of <check-id> for last 10 seconds'
-  help.push 'hubot canary measure <check-id> <num-seconds> - get url to download measurements of <check-id> for last <num-seconds> seconds'
-  help.push 'hubot canary help - get list of hubot canary commands'
-
-  msg.send help.join '\n'
+  msg.send help.toString()
 
 getUnknownCommand = (msg) ->
   list = []
@@ -437,7 +423,55 @@ getUnknownCommand = (msg) ->
   msg.send list.join '\n'
 
 isValidCheckId = (msg, checkId) ->
-  c = checksMap[checkId]
-  return true if c?
+  return true if checks.isValid(checkId)
   msg.send '"' + checkId + '" is not a current check-id.\nTry "hubot canary check" for the current cached list.\nOr try "hubot canary reset" to clear the cache and retrive new list.'
   return false
+
+class Checks
+  constructor: ->
+    @checks = []
+    @map = {}
+    @checksUrl = 'http://checks.canary.io'
+
+  isValid: (checkId) ->
+    c = @map[checkId] || null
+    c?
+
+  length: ->
+    @checks.length
+
+  load: (list) ->
+    @reset()
+    @checks = list
+    @map[c.id] = c for c in @checks
+
+  reset: ->
+    @checks = []
+    @map = {}
+
+  toString: ->
+    deets = []
+    deets.push "id: #{c.id} => url: #{c.url}" for c in @checks
+    deets.join '\n'
+
+  url: ->
+    @checksUrl
+
+class Help
+  constructor: ->
+    @help = []
+    @help.push 'hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>'
+    @help.push 'hubot canary mon stop <check-id> - stop monitoring <check-id>'
+    @help.push 'hubot canary mon stop all - stop all monitoring'
+    @help.push 'hubot canary incident <check-id> - same as "hubot canary mon <check-id>" but only display 5xx http status and non-zero exit status (failures)'
+    @help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time'
+    @help.push 'hubot canary check - get the list of URLs which have measurements taken by canary.io' 
+    @help.push 'hubot canary check <filter> - get filtered list of checked URLs. Coming soon!'
+    @help.push 'hubot canary check reset - clear the hubot canary check cache, then get again'
+    @help.push 'hubot canary watch <check-id> - get url to open <check-id> for real-time monitoring in http://watch.canary.io'
+    @help.push 'hubot canary measure <check-id> - get url to download measurements of <check-id> for last 10 seconds'
+    @help.push 'hubot canary measure <check-id> <num-seconds> - get url to download measurements of <check-id> for last <num-seconds> seconds'
+    @help.push 'hubot canary help - get list of hubot canary commands'
+
+  toString: ->
+    @help.join '\n'
