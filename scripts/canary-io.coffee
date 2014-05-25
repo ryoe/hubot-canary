@@ -24,6 +24,7 @@
 # Author:
 #   ryoe
 moment = require 'moment'
+querystring = require 'querystring'
 
 MAX_RANGE = 300
 DEFAULT_RANGE = 10
@@ -35,8 +36,56 @@ checksUrl = 'http://checks.canary.io'
 measuresUrl = 'https://api.canary.io/checks/XXX/measurements?range=YYY'
 watchUrl = 'http://watch.canary.io/'
 watchReplaceUrl = 'http://watch.canary.io/#/checks/XXX/measurements'
+rbt = null
 
 module.exports = (robot) ->
+  rbt = robot
+  robot.error (err, msg) ->
+    console.log 'guh'
+    console.log err
+    robot.logger.error "DOES NOT COMPUTE"
+
+    if msg?
+      msg.reply "DOES NOT COMPUTE"
+
+  robot.on 'canary:incEvt', (arg1) ->
+    console.log 'canary:incEvt'
+    console.log arg1
+    robot.messageRoom '109614_demo@conf.hipchat.com', 'hell yeah!'
+
+  robot.router.post '/hubot/incident', (req, res) ->
+    data = req.body
+    msg = data.message
+
+    user = {}
+    user.type = 'groupchat'
+    user.room = '109614_demo@conf.hipchat.com' #NOTIFY_ROOM #q.room if q.room
+
+    hMsg = "DO NOT BE ALARMED!\nWe just handled a POST! This is a broadcast message from your new robot overlord!\n\n#{msg}"
+
+    robot.send user, hMsg
+    res.end "POST incident #{msg}"
+
+  robot.router.get '/hubot/incident', (req, res) ->
+    q = querystring.parse req._parsedUrl.query
+    msg = q.message
+
+    user = {}
+    user.type = 'groupchat'
+    user.room = '109614_demo@conf.hipchat.com' #NOTIFY_ROOM #q.room if q.room
+
+    hMsg = "DO NOT BE ALARMED!\nThis is a broadcast message from your new robot overlord!\n\n#{msg}"
+    hMsg = 'canary begin'#'bluebot canary mon https-github.com'
+    robot.send user, hMsg
+    #console.log robot
+    #robot.respond 'bluebot canary incident https-github.com'
+    #robot.respond 'canary incident https-github.com'
+    #m = robot.Response
+    #m.message = {}
+    #m.message.text = 'canary incident https-github.com'
+    #processCanaryCmd m, m.message.text
+    res.end "incident #{msg}"
+
   robot.respond /\bcanary\b/i, (msg) ->
     text = msg.message.text
 
@@ -215,6 +264,9 @@ setupMonitor = (msg, checkId, isMon) ->
 processMonitors = (msg, isMon) ->
   range = MAX_RANGE
   getSummaryData msg, checkId, range, true, isMon for checkId in monitors
+  console.log 'emit'
+  rbt.emit 'canary:incEvt', { msg: 'boom'}
+  console.log 'post-emit'
 
 getSummary = (msg) ->
   text = msg.message.text
