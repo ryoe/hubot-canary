@@ -282,10 +282,8 @@ getSummary = (msg) ->
   getSummaryData msg, checkId, range, false, true
 
 getSummaryData = (msg, checkId, range, totalOnly, isMon) ->
-  regEx = new RegExp 'XXX', 'i'
-  url = measuresUrl.replace regEx, checkId
-  regEx = new RegExp 'YYY', 'i'
-  url = url.replace regEx, range
+  m = new Measurements checkId, range, totalOnly, isMon
+  url = m.url()
 
   apiCall msg, url, (err, body) ->
     if err
@@ -294,123 +292,8 @@ getSummaryData = (msg, checkId, range, totalOnly, isMon) ->
       return
 
     data = JSON.parse body
-    displaySummary msg, data, checkId, range, totalOnly, isMon
-
-displaySummary = (msg, measurements, checkId, range, totalOnly, isMon) ->
-  if measurements.length == 0
-    msg.send "Zero measurements found for #{checkId} in last #{range} seconds."
-    return
-
-  locMap = {}
-  i = 0
-  len = measurements.length
-
-  while i < len
-    loc = measurements[i]
-    unless locMap[loc.location]
-      locMap[loc.location] =
-        loc: loc.location
-        max: loc.total_time
-        min: loc.total_time
-        total: loc.total_time
-        avg: 0
-        fail: 0
-        success: 0
-        http1xx: 0
-        http2xx: 0
-        http3xx: 0
-        http4xx: 0
-        http5xx: 0
-    if loc.exit_status is 0
-      locMap[loc.location].success++
-      locMap[loc.location].total += loc.total_time
-      locMap[loc.location].avg = locMap[loc.location].total/locMap[loc.location].success
-    else
-      locMap[loc.location].fail++
-    if loc.total_time > locMap[loc.location].max
-      locMap[loc.location].max = loc.total_time
-    else locMap[loc.location].min = loc.total_time  if loc.total_time < locMap[loc.location].min
-    httpStatus = loc.http_status
-    if httpStatus >= 200 and httpStatus < 300
-      locMap[loc.location].http2xx++
-    else if httpStatus >= 300 and httpStatus < 400
-      locMap[loc.location].http3xx++
-    else if httpStatus >= 400 and httpStatus < 500
-      locMap[loc.location].http4xx++
-    else if httpStatus >= 500
-      locMap[loc.location].http5xx++
-    else
-      locMap[loc.location].http1xx++
-    i++
-
-  locs = []
-  for prop of locMap
-    locs.push locMap[prop]
-  tot =
-    loc: 'Total'
-    max: 0
-    min: 100
-    total: 0
-    avg: 0
-    fail: 0
-    success: 0
-    http1xx: 0
-    http2xx: 0
-    http3xx: 0
-    http4xx: 0
-    http5xx: 0
-  for loc in locs
-    tot.max = loc.max if loc.max > tot.max
-    tot.min = loc.min if loc.min < tot.min
-    tot.total += loc.total
-    tot.fail += loc.fail
-    tot.success += loc.success
-    tot.http1xx += loc.http1xx
-    tot.http2xx += loc.http2xx
-    tot.http3xx += loc.http3xx
-    tot.http4xx += loc.http4xx
-    tot.http5xx += loc.http5xx
-
-  tot.avg = tot.total/tot.success
-  locs.sort (a, b) ->
-    #then most http status 5xx
-    return b.http5xx- a.http5xx  if a.http5xx isnt b.http5xx
-    #most failed checks
-    return b.fail - a.fail  if a.fail isnt b.fail
-    #then slowest avg
-    return b.avg - a.avg  if a.avg isnt b.avg
-    #then slowest call
-    return b.max - a.max  if a.max isnt b.max
-    #then slowest total
-    b.total - a.total
-
-  if totalOnly
-    locs = [tot]
-  else locs.unshift tot
-  startDate = moment.unix(measurements[len-1].t)
-  endDate = moment.unix(measurements[0].t)
-  dateRange = startDate.format("MMM D, YYYY") + " " + startDate.format("HH:mm:ss") + " to " + endDate.format("HH:mm:ss (UTC ZZ)")
-  chk = measurements[0].check
-
-  deets = []
-  deets.push 'Summary for '+ chk.url
-  deets.push dateRange
-  deets.push 'Total measurements: ' + len
-  deets.push '--------------------'
-  deets.push summaryDetails s, isMon for s in locs
-
-  msg.send deets.join '\n'
-
-summaryDetails = (locSummary, isMon) ->
-  deets = []
-  deets.push locSummary.loc.toUpperCase()
-  deets.push '  failed: ' + locSummary.fail if locSummary.fail isnt 0
-  deets.push '  5xx: ' + locSummary.http5xx if locSummary.http5xx isnt 0
-  deets.push '  4xx: ' + locSummary.http4xx if isMon and locSummary.http4xx isnt 0
-  deets.push '  3xx: ' + locSummary.http3xx if isMon and locSummary.http3xx isnt 0
-  deets.push '  2xx: ' + locSummary.http2xx if isMon and locSummary.http2xx isnt 0
-  deets.push '  1xx: ' + locSummary.http1xx if isMon and locSummary.http1xx isnt 0
-  return deets.join '\n'
+    m.load data
+    msg.send m.toString()
 
 getHelp = (msg) ->
   msg.send help.toString()
@@ -465,7 +348,7 @@ class Help
     @help.push 'hubot canary mon stop all - stop all monitoring'
     @help.push 'hubot canary incident <check-id> - same as "hubot canary mon <check-id>" but only display 5xx http status and non-zero exit status (failures)'
     @help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time'
-    @help.push 'hubot canary check - get the list of URLs which have measurements taken by canary.io' 
+    @help.push 'hubot canary check - get the list of URLs which have measurements taken by canary.io'
     @help.push 'hubot canary check <filter> - get filtered list of checked URLs. Coming soon!'
     @help.push 'hubot canary check reset - clear the hubot canary check cache, then get again'
     @help.push 'hubot canary watch <check-id> - get url to open <check-id> for real-time monitoring in http://watch.canary.io'
@@ -475,3 +358,144 @@ class Help
 
   toString: ->
     @help.join '\n'
+
+class Measurements
+  constructor: (checkId, range, totalOnly, isMon) ->
+    @measurementCheckId = checkId
+    @measurementRange = range
+    @isTotalOnly = totalOnly
+    @isMonitor = isMon
+    @measurements = []
+    @measurementsApiUrl = 'https://measurements.canary.io' #the future
+    @measurementsReplaceUrl = 'https://api.canary.io/checks/XXX/measurements?range=YYY'
+    @xxxRegEx = new RegExp 'XXX', 'i'
+    @yyyRegEx = new RegExp 'YYY', 'i'
+    @measurementsUrl = @measurementsReplaceUrl.replace @xxxRegEx, @measurementCheckId
+    @measurementsUrl = @measurementsUrl.replace @yyyRegEx, @measurementRange
+
+  length: ->
+    @measurements.length
+
+  load: (list) ->
+    @measurements = list
+
+  toString: ->
+    @displaySummary()
+
+  displaySummary: ->
+    if @measurements.length is 0
+      return "Zero measurements found for #{@measurementCheckId} in last #{@measurementRange} seconds."
+
+    locMap = {}
+    i = 0
+    len = @measurements.length
+
+    while i < len
+      loc = @measurements[i]
+      unless locMap[loc.location]
+        locMap[loc.location] =
+          loc: loc.location
+          max: loc.total_time
+          min: loc.total_time
+          total: loc.total_time
+          avg: 0
+          fail: 0
+          success: 0
+          http1xx: 0
+          http2xx: 0
+          http3xx: 0
+          http4xx: 0
+          http5xx: 0
+      if loc.exit_status is 0
+        locMap[loc.location].success++
+        locMap[loc.location].total += loc.total_time
+        locMap[loc.location].avg = locMap[loc.location].total/locMap[loc.location].success
+      else
+        locMap[loc.location].fail++
+      if loc.total_time > locMap[loc.location].max
+        locMap[loc.location].max = loc.total_time
+      else locMap[loc.location].min = loc.total_time  if loc.total_time < locMap[loc.location].min
+      httpStatus = loc.http_status
+      if httpStatus >= 200 and httpStatus < 300
+        locMap[loc.location].http2xx++
+      else if httpStatus >= 300 and httpStatus < 400
+        locMap[loc.location].http3xx++
+      else if httpStatus >= 400 and httpStatus < 500
+        locMap[loc.location].http4xx++
+      else if httpStatus >= 500
+        locMap[loc.location].http5xx++
+      else
+        locMap[loc.location].http1xx++
+      i++
+
+    locs = []
+    for prop of locMap
+      locs.push locMap[prop]
+    tot =
+      loc: 'Total'
+      max: 0
+      min: 100
+      total: 0
+      avg: 0
+      fail: 0
+      success: 0
+      http1xx: 0
+      http2xx: 0
+      http3xx: 0
+      http4xx: 0
+      http5xx: 0
+    for loc in locs
+      tot.max = loc.max if loc.max > tot.max
+      tot.min = loc.min if loc.min < tot.min
+      tot.total += loc.total
+      tot.fail += loc.fail
+      tot.success += loc.success
+      tot.http1xx += loc.http1xx
+      tot.http2xx += loc.http2xx
+      tot.http3xx += loc.http3xx
+      tot.http4xx += loc.http4xx
+      tot.http5xx += loc.http5xx
+
+    tot.avg = tot.total/tot.success
+    locs.sort (a, b) ->
+      #most http status 5xx
+      return b.http5xx- a.http5xx  if a.http5xx isnt b.http5xx
+      #then most failed checks
+      return b.fail - a.fail  if a.fail isnt b.fail
+      #then slowest avg
+      return b.avg - a.avg  if a.avg isnt b.avg
+      #then slowest call
+      return b.max - a.max  if a.max isnt b.max
+      #then slowest total
+      b.total - a.total
+
+    if @isTotalOnly
+      locs = [tot]
+    else locs.unshift tot
+    startDate = moment.unix(@measurements[len-1].t)
+    endDate = moment.unix(@measurements[0].t)
+    dateRange = startDate.format("MMM D, YYYY") + " " + startDate.format("HH:mm:ss") + " to " + endDate.format("HH:mm:ss (UTC ZZ)")
+    chk = @measurements[0].check
+
+    deets = []
+    deets.push 'Summary for '+ chk.url
+    deets.push dateRange
+    deets.push 'Total measurements: ' + len
+    deets.push '--------------------'
+    deets.push @summaryDetails s for s in locs
+
+    deets.join '\n'
+
+  summaryDetails: (locSummary) ->
+    deets = []
+    deets.push locSummary.loc.toUpperCase()
+    deets.push "  failed: #{locSummary.fail}" if locSummary.fail isnt 0
+    deets.push "  5xx: #{locSummary.http5xx}" if locSummary.http5xx isnt 0
+    deets.push "  4xx: #{locSummary.http4xx}" if @isMonitor and locSummary.http4xx isnt 0
+    deets.push "  3xx: #{locSummary.http3xx}" if @isMonitor and locSummary.http3xx isnt 0
+    deets.push "  2xx: #{locSummary.http2xx}" if @isMonitor and locSummary.http2xx isnt 0
+    deets.push "  1xx: #{locSummary.http1xx}" if @isMonitor and locSummary.http1xx isnt 0
+    deets.join '\n'
+
+  url: ->
+    @measurementsUrl
