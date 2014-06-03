@@ -47,6 +47,15 @@ module.exports = (robot) ->
   initChecks()
   envVarWarn()
 
+  robot.respond /\bcanary\b/i, (msg) ->
+    text = msg.message.text
+
+    if checks.length() == 0 #sanity check
+      getChecks msg, true, (err, data) ->
+        processCanaryCmd msg, text if not err
+    else
+      processCanaryCmd msg, text
+
   robot.error (err, msg) ->
     console.log err
     robot.logger.error "DOES NOT COMPUTE"
@@ -102,15 +111,6 @@ module.exports = (robot) ->
       setupMonitor { room: user.room }, cid, false
     res.end "GET incident:\n* checkId: #{cid}\n* type: #{type}\n* room: #{room}#{roomWarn}"
     envVarWarn()
-
-  robot.respond /\bcanary\b/i, (msg) ->
-    text = msg.message.text
-
-    if checks.length() == 0 #sanity check
-      getChecks msg, true, (err, data) ->
-        processCanaryCmd msg, text if not err
-    else
-      processCanaryCmd msg, text
 
 envVarWarn = ->
   rm = process.env.HUBOT_CANARY_NOTIFY_ROOM || null
