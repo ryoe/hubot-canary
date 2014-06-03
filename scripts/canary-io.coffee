@@ -18,6 +18,12 @@
 #   hubot canary measure <check-id> <num-seconds> - get url to download measurements of <check-id> for last <num-seconds> seconds
 #   hubot canary help - get list of hubot canary commands
 #
+# Configuration:
+#   HUBOT_CANARY_NOTIFY_ROOM - chat room where GET incident messages will be sent
+#
+# URLS:
+#   GET /hubot/incident?checkId=<check-id>[&room=<room>&type=<start|stop>]
+#
 # Notes:
 #   Have fun with it.
 #
@@ -30,9 +36,6 @@ MAX_RANGE = 300
 DEFAULT_RANGE = 10
 monitors = []
 monInterval = null
-measuresUrl = 'https://api.canary.io/checks/XXX/measurements?range=YYY'
-watchUrl = 'http://watch.canary.io/'
-watchReplaceUrl = 'http://watch.canary.io/#/checks/XXX/measurements'
 checks = null
 help = null
 rbt = null
@@ -41,54 +44,46 @@ module.exports = (robot) ->
   rbt = robot
   help = new Help
   checks = new Checks
-  
+  initChecks()
+  envVarWarn()
+
   robot.error (err, msg) ->
-    console.log 'guh'
     console.log err
     robot.logger.error "DOES NOT COMPUTE"
 
     if msg?
       msg.reply "DOES NOT COMPUTE"
 
-  robot.on 'hubot-canary:incEvt', (data) ->
-    console.log 'hubot-canary:incEvt'
-    console.log data
-    room = data.room || '109614_demo@conf.hipchat.com'
+  robot.on 'hubot-canary:msgEvent', (data) ->
+    if data.room
+      room = data.room
+    else if data.user and data.user.reply_to
+      room = data.user.reply_to
+    else if data.envelope and data.envelope.user and data.envelope.user.reply_to
+      room = data.envelope.user.reply_to
+    else
+      room = process.env.HUBOT_CANARY_NOTIFY_ROOM
     dataMsg = data.message || 'It is important that you know, no was message received!'
-    robot.messageRoom room, dataMsg
-
-  robot.router.post '/hubot/incident', (req, res) ->
-    data = req.body
-    msg = data.message
-
-    user = {}
-    user.type = 'groupchat'
-    user.room = '109614_demo@conf.hipchat.com' #NOTIFY_ROOM #q.room if q.room
-
-    hMsg = "DO NOT BE ALARMED!\nWe just handled a POST! This is a broadcast message from your new robot overlord!\n\n#{msg}"
-
-    robot.send user, hMsg
-    res.end "POST incident #{msg}"
+    robot.messageRoom room, "#{dataMsg}"
+    envVarWarn()
 
   robot.router.get '/hubot/incident', (req, res) ->
-    q = querystring.parse req._parsedUrl.query
-    msg = q.message
+    q    = querystring.parse req._parsedUrl.query
+    cid  = q.checkId
+    type = q.type || 'start'
+    room = q.room || process.env.HUBOT_CANARY_NOTIFY_ROOM || null
+    roomWarn = if (process.env.HUBOT_CANARY_NOTIFY_ROOM || null)? then '' else '\n* HUBOT_CANARY_NOTIFY_ROOM environment variable not set'
 
     user = {}
-    user.type = 'groupchat'
-    user.room = '109614_demo@conf.hipchat.com' #NOTIFY_ROOM #q.room if q.room
+    user.room = room
 
-    hMsg = "DO NOT BE ALARMED!\nThis is a broadcast message from your new robot overlord!\n\n#{msg}"
-    hMsg = 'canary begin'#'bluebot canary mon https-github.com'
-    robot.send user, hMsg
-    #console.log robot
-    #robot.respond 'bluebot canary incident https-github.com'
-    #robot.respond 'canary incident https-github.com'
-    #m = robot.Response
-    #m.message = {}
-    #m.message.text = 'canary incident https-github.com'
-    #processCanaryCmd m, m.message.text
-    res.end "incident #{msg}"
+    #call existing xxxMonitor functions...
+    if 'stop'.localeCompare(type.toLowerCase()) is 0
+      stopMonitor { message: { text: "mon stop #{cid}"}}
+    else
+      setupMonitor { room: user.room }, cid, false
+    res.end "incident:\n* checkId: #{cid}\n* type: #{type}\n* room: #{room}#{roomWarn}"
+    envVarWarn()
 
   robot.respond /\bcanary\b/i, (msg) ->
     text = msg.message.text
@@ -98,6 +93,17 @@ module.exports = (robot) ->
         processCanaryCmd msg, text if not err
     else
       processCanaryCmd msg, text
+
+envVarWarn = ->
+  rm = process.env.HUBOT_CANARY_NOTIFY_ROOM || null
+  unless rm?
+    rbt.logger.warning 'HUBOT_CANARY_NOTIFY_ROOM environment variable not set'
+
+initChecks = ->
+  msg =
+    message: 
+      text: 'check'
+  getChecks msg, true, null
 
 processCanaryCmd = (msg, text) ->
   if text.match(/\bcheck(s)?\b/i)
@@ -119,7 +125,7 @@ processCanaryCmd = (msg, text) ->
 
 apiCall = (msg, url, cb) ->
   console.log url
-  msg.http(url)
+  rbt.http(url)
     .headers(Accept: 'application/json')
     .get() (err, res, body) ->
       if err
@@ -152,7 +158,7 @@ getChecks = (msg, silent, cb) ->
   apiCall msg, checks.url(), (err, body) ->
     if err
       console.log err
-      msg.send body
+      emitMessage msg, body
       return
 
     data = JSON.parse body
@@ -161,7 +167,7 @@ getChecks = (msg, silent, cb) ->
     cb null, null if cb
 
 displayChecks = (msg) ->
-  msg.send checks.toString()
+  emitMessage msg, checks.toString()
 
 getWatchUrl = (msg) ->
   text = msg.message.text
@@ -172,16 +178,14 @@ getWatchUrl = (msg) ->
     return
 
   checkId = matches[2] || null
+  w = new Watch(checkId)
+  url = w.url()
   if not checkId?
-    url = watchUrl
-    msg.send "WARN: No <check-id> provided.\n#{url}"
+    emitMessage msg, "WARN: No <check-id> provided.\n#{url}"
     return
 
   return if not isValidCheckId msg, checkId
-
-  regEx = new RegExp 'XXX', 'i'
-  url = watchReplaceUrl.replace regEx, checkId
-  msg.send "#{url}"
+  emitMessage msg, "#{url}"
 
 getMeasurements = (msg) ->
   text = msg.message.text
@@ -192,17 +196,12 @@ getMeasurements = (msg) ->
     return
 
   checkId = matches[3]
-  range = matches[5] || DEFAULT_RANGE
-  range = MAX_RANGE if range > MAX_RANGE
-  range = DEFAULT_RANGE if range <= 0
-
   return if not isValidCheckId msg, checkId
 
-  regEx = new RegExp 'XXX', 'i'
-  url = measuresUrl.replace regEx, checkId
-  regEx = new RegExp 'YYY', 'i'
-  url = url.replace regEx, range
-  msg.send "#{url}"
+  range = matches[5]
+  m = new Measurements checkId, range, false, false
+  url = m.url()
+  emitMessage msg, "#{url}"
 
 stopMonitor = (msg) ->
   text = msg.message.text
@@ -223,7 +222,7 @@ stopMonitor = (msg) ->
   if monitors.length == 0
     clearInterval monInterval
     monInterval = null
-    msg.send 'All monitors cleared.'
+    emitMessage msg, 'All monitors cleared.'
 
 startIncident = (msg) ->
   text = msg.message.text
@@ -234,7 +233,6 @@ startIncident = (msg) ->
     return
 
   checkId = matches[2]
-  return if not isValidCheckId msg, checkId
   setupMonitor msg, checkId, false
 
 startMonitor = (msg) ->
@@ -250,10 +248,10 @@ startMonitor = (msg) ->
     return
 
   checkId = matches[2]
-  return if not isValidCheckId msg, checkId
   setupMonitor msg, checkId, true
 
 setupMonitor = (msg, checkId, isMon) ->
+  return if not isValidCheckId msg, checkId
   idx = monitors.indexOf checkId
   monitors.push checkId if idx < 0
   delay = 5000
@@ -264,9 +262,6 @@ setupMonitor = (msg, checkId, isMon) ->
 processMonitors = (msg, isMon) ->
   range = MAX_RANGE
   getSummaryData msg, checkId, range, true, isMon for checkId in monitors
-  console.log 'emit'
-  rbt.emit 'hubot-canary:incEvt', { msg: 'boom'}
-  console.log 'post-emit'
 
 getSummary = (msg) ->
   text = msg.message.text
@@ -288,27 +283,51 @@ getSummaryData = (msg, checkId, range, totalOnly, isMon) ->
   apiCall msg, url, (err, body) ->
     if err
       console.log err
-      msg.send body
+      emitMessage msg, body
       return
 
     data = JSON.parse body
     m.load data
-    msg.send m.toString()
+    emitMessage msg, m.toString()
 
 getHelp = (msg) ->
-  msg.send help.toString()
+  emitMessage msg, help.toString()
 
 getUnknownCommand = (msg) ->
-  list = []
-  list.push 'Unable to comply. Unknown command "' + msg.message.text + '"'
-  list.push 'Try "hubot canary help".'
-
-  msg.send list.join '\n'
+  emitMessage msg, "Unable to comply. Unknown command #{msg.message.text}\nTry 'hubot canary help'."
 
 isValidCheckId = (msg, checkId) ->
   return true if checks.isValid(checkId)
-  msg.send '"' + checkId + '" is not a current check-id.\nTry "hubot canary check" for the current cached list.\nOr try "hubot canary reset" to clear the cache and retrive new list.'
+  emitMessage msg, "#{checkId} is not a current check-id.\nTry 'hubot canary check' for the current cached list.\nOr try 'hubot canary reset' to clear the cache and retrieve new list."
   return false
+
+emitMessage = (msg, message) ->
+  mess = msg.message || {}
+  usr  = mess.user || null
+  env  = mess.envelope || null
+  rm   = msg.room || mess.room || null
+
+  data = 
+    user:     usr || null
+    envelope: env || null
+    room:     rm  || null
+    message:  "#{message}"
+  rbt.emit 'hubot-canary:msgEvent', data
+
+class Monitor
+  constructor: ->
+
+class Watch
+  constructor: (checkId) ->
+    @watchCheckId = checkId || null
+    @watchUrl = 'http://watch.canary.io/'
+    @watchReplaceUrl = 'http://watch.canary.io/#/checks/XXX/measurements'
+    @xxxRegEx = new RegExp 'XXX', 'i'
+
+  url: ->
+    if not @watchCheckId?
+      return @watchUrl
+    @watchReplaceUrl.replace @xxxRegEx, @watchCheckId
 
 class Checks
   constructor: ->
@@ -322,6 +341,8 @@ class Checks
 
   length: ->
     @checks.length
+
+  get: (api) ->
 
   load: (list) ->
     @reset()
@@ -342,29 +363,34 @@ class Checks
 
 class Help
   constructor: ->
-    @help = []
-    @help.push 'hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>'
-    @help.push 'hubot canary mon stop <check-id> - stop monitoring <check-id>'
-    @help.push 'hubot canary mon stop all - stop all monitoring'
-    @help.push 'hubot canary incident <check-id> - same as "hubot canary mon <check-id>" but only display 5xx http status and non-zero exit status (failures)'
-    @help.push 'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time'
-    @help.push 'hubot canary check - get the list of URLs which have measurements taken by canary.io'
-    @help.push 'hubot canary check <filter> - get filtered list of checked URLs. Coming soon!'
-    @help.push 'hubot canary check reset - clear the hubot canary check cache, then get again'
-    @help.push 'hubot canary watch <check-id> - get url to open <check-id> for real-time monitoring in http://watch.canary.io'
-    @help.push 'hubot canary measure <check-id> - get url to download measurements of <check-id> for last 10 seconds'
-    @help.push 'hubot canary measure <check-id> <num-seconds> - get url to download measurements of <check-id> for last <num-seconds> seconds'
-    @help.push 'hubot canary help - get list of hubot canary commands'
+    @help = [
+      'hubot canary mon <check-id> - start monitoring <check-id>. every 5 seconds send hubot canary summary <check-id>'
+      'hubot canary mon stop <check-id> - stop monitoring <check-id>'
+      'hubot canary mon stop all - stop all monitoring'
+      'hubot canary incident <check-id> - same as "hubot canary mon <check-id>" but only display 5xx http status and non-zero exit status (failures)'
+      'hubot canary summary <check-id> - get summary measurements of <check-id> for last 5 minutes sorted by most http status 5xx, most failed checks (non-zero exit_status), slowest avg, slowest single call, slowest total time'
+      'hubot canary check - get the list of URLs which have measurements taken by canary.io'
+      'hubot canary check <filter> - get filtered list of checked URLs. Coming soon!'
+      'hubot canary check reset - clear the hubot canary check cache, then get again'
+      'hubot canary watch <check-id> - get url to open <check-id> for real-time monitoring in http://watch.canary.io'
+      'hubot canary measure <check-id> - get url to download measurements of <check-id> for last 10 seconds'
+      'hubot canary measure <check-id> <num-seconds> - get url to download measurements of <check-id> for last <num-seconds> seconds'
+      'hubot canary help - get list of hubot canary commands'
+    ]
 
   toString: ->
     @help.join '\n'
 
 class Measurements
   constructor: (checkId, range, totalOnly, isMon) ->
+    range = range || DEFAULT_RANGE
+    range = MAX_RANGE if range > MAX_RANGE
+    range = DEFAULT_RANGE if range <= 0
+
     @measurementCheckId = checkId
     @measurementRange = range
-    @isTotalOnly = totalOnly
-    @isMonitor = isMon
+    @isTotalOnly = totalOnly || false
+    @isMonitor = isMon || false
     @measurements = []
     @measurementsApiUrl = 'https://measurements.canary.io' #the future
     @measurementsReplaceUrl = 'https://api.canary.io/checks/XXX/measurements?range=YYY'
@@ -495,6 +521,7 @@ class Measurements
     deets.push "  3xx: #{locSummary.http3xx}" if @isMonitor and locSummary.http3xx isnt 0
     deets.push "  2xx: #{locSummary.http2xx}" if @isMonitor and locSummary.http2xx isnt 0
     deets.push "  1xx: #{locSummary.http1xx}" if @isMonitor and locSummary.http1xx isnt 0
+    deets.push "  Zero negative events." if deets.length < 2
     deets.join '\n'
 
   url: ->
