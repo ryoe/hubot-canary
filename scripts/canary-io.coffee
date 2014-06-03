@@ -19,10 +19,14 @@
 #   hubot canary help - get list of hubot canary commands
 #
 # Configuration:
-#   HUBOT_CANARY_NOTIFY_ROOM - chat room where GET incident messages will be sent
+#   HUBOT_CANARY_NOTIFY_ROOM - chat room where GET/POST incident messages will be sent
 #
 # URLS:
 #   GET /hubot/incident?checkId=<check-id>[&room=<room>&type=<start|stop>]
+#   POST /hubot/incident
+#     checkId = <check-id>
+#     [room = <room>]
+#     [type = <start|stop>]
 #
 # Notes:
 #   Have fun with it.
