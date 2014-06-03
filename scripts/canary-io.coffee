@@ -67,6 +67,24 @@ module.exports = (robot) ->
     robot.messageRoom room, "#{dataMsg}"
     envVarWarn()
 
+  robot.router.post '/hubot/incident', (req, res) ->
+    data = req.body
+    cid  = data.checkId
+    type = data.type || 'start'
+    room = data.room || process.env.HUBOT_CANARY_NOTIFY_ROOM || null
+    roomWarn = if (process.env.HUBOT_CANARY_NOTIFY_ROOM || null)? then '' else '\n* HUBOT_CANARY_NOTIFY_ROOM environment variable not set'
+
+    user = {}
+    user.room = room
+
+    #call existing xxxMonitor functions...
+    if 'stop'.localeCompare(type.toLowerCase()) is 0
+      stopMonitor { message: { text: "mon stop #{cid}"}}
+    else
+      setupMonitor { room: user.room }, cid, false
+    res.end "POST incident:\n* checkId: #{cid}\n* type: #{type}\n* room: #{room}#{roomWarn}"
+    envVarWarn()
+
   robot.router.get '/hubot/incident', (req, res) ->
     q    = querystring.parse req._parsedUrl.query
     cid  = q.checkId
@@ -82,7 +100,7 @@ module.exports = (robot) ->
       stopMonitor { message: { text: "mon stop #{cid}"}}
     else
       setupMonitor { room: user.room }, cid, false
-    res.end "incident:\n* checkId: #{cid}\n* type: #{type}\n* room: #{room}#{roomWarn}"
+    res.end "GET incident:\n* checkId: #{cid}\n* type: #{type}\n* room: #{room}#{roomWarn}"
     envVarWarn()
 
   robot.respond /\bcanary\b/i, (msg) ->
