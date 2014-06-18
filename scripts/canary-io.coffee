@@ -68,13 +68,13 @@ module.exports = (robot) ->
       msg.reply "DOES NOT COMPUTE"
 
   robot.on 'hubot-canary:msgEvent', (data) ->
-    if data.room
-      room = data.room
-    else if data.user and data.user.reply_to
+    if data.user and data.user.reply_to
       room = data.user.reply_to
     else if data.envelope and data.envelope.user and data.envelope.user.reply_to
       room = data.envelope.user.reply_to
-    else
+    else if data.room
+      room = data.room
+    else 
       room = process.env.HUBOT_CANARY_NOTIFY_ROOM
     dataMsg = data.message || 'It is important that you know, no was message received!'
     robot.messageRoom room, "#{dataMsg}"

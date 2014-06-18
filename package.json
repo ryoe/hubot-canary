@@ -1,6 +1,6 @@
 {
   "name": "hubot-canary",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A hubot script to query the canary.io API",
   "main": "index.coffee",
   "scripts": {
