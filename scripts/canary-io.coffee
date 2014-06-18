@@ -37,6 +37,7 @@ moment = require 'moment'
 querystring = require 'querystring'
 
 MAX_RANGE = 300
+INCIDENT_RANGE = 180
 DEFAULT_RANGE = 10
 monitors = []
 monInterval = null
@@ -68,15 +69,17 @@ module.exports = (robot) ->
       msg.reply "DOES NOT COMPUTE"
 
   robot.on 'hubot-canary:msgEvent', (data) ->
-    if data.room
-      room = data.room
-    else if data.user and data.user.reply_to
+    console.log data.message
+    if data.user and data.user.reply_to
       room = data.user.reply_to
     else if data.envelope and data.envelope.user and data.envelope.user.reply_to
       room = data.envelope.user.reply_to
-    else
+    else if data.room
+      room = data.room
+    else 
       room = process.env.HUBOT_CANARY_NOTIFY_ROOM
     dataMsg = data.message || 'It is important that you know, no was message received!'
+    console.log room
     robot.messageRoom room, "#{dataMsg}"
     envVarWarn()
 
@@ -282,7 +285,7 @@ setupMonitor = (msg, checkId, isMon) ->
     monInterval = setInterval processMonitors, delay, msg, isMon
 
 processMonitors = (msg, isMon) ->
-  range = MAX_RANGE
+  range = if isMon then MAX_RANGE else INCIDENT_RANGE
   getSummaryData msg, checkId, range, true, isMon for checkId in monitors
 
 getSummary = (msg) ->
@@ -334,6 +337,7 @@ emitMessage = (msg, message) ->
     envelope: env || null
     room:     rm  || null
     message:  "#{message}"
+  console.log data
   rbt.emit 'hubot-canary:msgEvent', data
 
 class Monitor
@@ -428,12 +432,96 @@ class Measurements
     @measurements = list
 
   toString: ->
-    @displaySummary()
-
-  displaySummary: ->
     if @measurements.length is 0
       return "Zero measurements found for #{@measurementCheckId} in last #{@measurementRange} seconds."
 
+    if not @isMonitor and @isTotalOnly
+      @displayChart()
+    else
+      @displaySummary()
+
+  displayChart: ->
+    @measurements.reverse(); #oldest first
+    len = @measurements.length
+    unixStart = @measurements[0].t
+    unixEnd = @measurements[len-1].t
+    startDate = moment.unix(unixStart)
+    endDate = moment.unix(unixEnd)
+    resSec = 5 #resolution seconds (aka bucket size)
+    threshold = unixStart + resSec
+    failed = []
+    locs5xx = []
+    timeBuckets = []
+    bucketLocs = []
+    i = 0
+    while i < len
+      loc = @measurements[i]
+      if loc.exit_status isnt 0
+        failed.push loc
+      else
+        bucketLocs.push loc
+        locs5xx.push loc  unless loc.http_status < 500
+
+      if loc.t is threshold
+        timeBuckets.push { locs: bucketLocs, failed: failed, locs5xx: locs5xx }
+        bucketLocs = []
+        failed = []
+        locs5xx = [];
+        threshold += resSec
+      i++
+
+    timeBuckets.push { locs: bucketLocs, failed: failed, locs5xx: locs5xx } #add the final bucket...
+    success = []
+    failed = []
+    locs5xx = []
+    bucketLocs = []
+    len = timeBuckets.length
+    i = 0
+    while i < len
+      bucket = timeBuckets[i]
+      console.log bucket
+      success.push bucket.locs.length
+      failed.push bucket.failed.length
+      locs5xx.push bucket.locs5xx.length
+      i++
+
+    chdata = []
+    #chdata.push success.join(',')
+    chdata.push failed.join(',')
+    #chdata.push locs5xx.join(',')
+    chdata.push success.join(',') #use "success" to fake up a bunch of 5xx status codes
+
+    tempDate = startDate.clone()
+    date30sIntervals = []
+    date30sIntervals.push tempDate.format('HH:mm:ss')
+    i = 0
+    while i < 6
+      date30sIntervals.push tempDate.add('s', 30).format('HH:mm:ss')
+      i++
+
+    chartArgs = []
+    datePart = []
+    datePart.push startDate.format('MMM+D,+YYYY')
+    datePart.push startDate.format('HH:mm:ss')
+    datePart.push 'to'
+    datePart.push endDate.format('HH:mm:ss+(ZZ)')
+    chartArgs.push 'chtt=' + @measurementCheckId+ '|' + datePart.join('+')
+    chartArgs.push 'chts=000000,14'
+    chartArgs.push 'chs=750x400'
+    chartArgs.push 'cht=bvg'
+    chartArgs.push 'chdl=Failed|Status+5xx'
+    chartArgs.push 'chdlp=t'
+    chartArgs.push 'chco=000000,FF6666'
+    chartArgs.push 'chds=a'
+    chartArgs.push 'chbh=6,1,6'
+    chartArgs.push 'chxt=x,y'
+    chartArgs.push 'chxl=0:|' + date30sIntervals.join('|')
+    chartArgs.push 'chxp=0,0'
+    chartArgs.push 'chd=t:' + chdata.join('|')
+
+    url = 'http://chart.googleapis.com/chart?' + chartArgs.join('&') + '#.png'
+
+  displaySummary: ->
     locMap = {}
     i = 0
     len = @measurements.length
