@@ -20,6 +20,9 @@
 #
 # Configuration:
 #   HUBOT_CANARY_NOTIFY_ROOM - chat room where GET/POST incident messages will be sent
+#   HUBOT_CANARY_API_HOST - host for canary.io API (default: https://api.canary.io)
+#   HUBOT_CANARY_CHECKS_HOST - host for canary.io checks (default: http://checks.canary.io)
+#   HUBOT_CANARY_WATCH_HOST - url to the canary-ember app (default: http://watch.canary.io)
 #
 # URLS:
 #   GET /hubot/incident?checkId=<check-id>[&room=<room>&type=<start|stop>]
@@ -344,8 +347,8 @@ class Monitor
 class Watch
   constructor: (checkId) ->
     @watchCheckId = checkId || null
-    @watchUrl = 'http://watch.canary.io/'
-    @watchReplaceUrl = 'http://watch.canary.io/#/checks/XXX/measurements'
+    @watchUrl = process.env.HUBOT_CANARY_WATCH_HOST || 'http://watch.canary.io'
+    @watchReplaceUrl = @watchUrl + '/#/checks/XXX/measurements'
     @xxxRegEx = new RegExp 'XXX', 'i'
 
   url: ->
@@ -357,7 +360,7 @@ class Checks
   constructor: ->
     @checks = []
     @map = {}
-    @checksUrl = 'http://checks.canary.io'
+    @checksUrl = process.env.HUBOT_CANARY_CHECKS_HOST || 'http://checks.canary.io'
 
   isValid: (checkId) ->
     c = @map[checkId] || null
@@ -417,7 +420,8 @@ class Measurements
     @isMonitor = isMon || false
     @measurements = []
     @measurementsApiUrl = 'https://measurements.canary.io' #the future
-    @measurementsReplaceUrl = 'https://api.canary.io/checks/XXX/measurements?range=YYY'
+    @measurementsHost = process.env.HUBOT_CANARY_API_HOST || 'https://api.canary.io'
+    @measurementsReplaceUrl = @measurementsHost + '/checks/XXX/measurements?range=YYY'
     @xxxRegEx = new RegExp 'XXX', 'i'
     @yyyRegEx = new RegExp 'YYY', 'i'
     @measurementsUrl = @measurementsReplaceUrl.replace @xxxRegEx, @measurementCheckId
